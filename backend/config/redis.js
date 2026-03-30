@@ -12,7 +12,8 @@ const connectRedis = async () => {
   }
 
   try {
-    redisClient = createClient({
+    // Configurazione per Upstash (supporta TLS con rediss://)
+    const redisConfig = {
       url: process.env.REDIS_URL,
       socket: {
         reconnectStrategy: (retries) => {
@@ -23,7 +24,15 @@ const connectRedis = async () => {
           return retries * 500; // Retry dopo 500ms, 1s, 1.5s, etc.
         }
       }
-    });
+    };
+
+    // Se URL usa rediss:// (TLS), aggiungi configurazione TLS per Upstash
+    if (process.env.REDIS_URL?.startsWith('rediss://')) {
+      redisConfig.socket.tls = true;
+      redisConfig.socket.rejectUnauthorized = false; // Necessario per Upstash
+    }
+
+    redisClient = createClient(redisConfig);
 
     redisClient.on('error', (err) => {
       console.error('❌ Redis Client Error:', err);
