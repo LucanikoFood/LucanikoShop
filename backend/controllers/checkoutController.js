@@ -249,13 +249,47 @@ export const createCheckoutSession = async (req, res) => {
             return compactItem;
         });
         
-        const chunkSize = 3; // Ridotto da 4 a 3 per sicurezza con varianti
+        // STRIPE FIX: Chunking DINAMICO basato su lunghezza (max 490 char per chunk)
+        // Questo gestisce prodotti con varianti complesse che possono superare 500 char anche con 2-3 prodotti
+        const MAX_CHUNK_LENGTH = 490; // Lascia margine di 10 caratteri
         const chunks = [];
-        for (let i = 0; i < cartItemsCompact.length; i += chunkSize) {
-            chunks.push(cartItemsCompact.slice(i, i + chunkSize));
+        let currentChunk = [];
+        
+        for (const item of cartItemsCompact) {
+            // Prova ad aggiungere l'item al chunk corrente
+            const testChunk = [...currentChunk, item];
+            const testChunkString = JSON.stringify(testChunk);
+            
+            if (testChunkString.length > MAX_CHUNK_LENGTH) {
+                // Se il chunk corrente supera il limite, salvalo e inizia uno nuovo
+                if (currentChunk.length > 0) {
+                    chunks.push(currentChunk);
+                    currentChunk = [item];
+                } else {
+                    // Caso edge: singolo item troppo grande - tronca le varianti
+                    console.warn('⚠️ [CHECKOUT] Item singolo troppo grande, riduco varianti:', item.productId);
+                    // Riduci precisione dei valori nelle varianti (rimuovi decimali lunghi)
+                    if (item.vAttrs && item.vAttrs.length > 0) {
+                        item.vAttrs = item.vAttrs.map(attr => ({
+                            k: attr.k,
+                            v: attr.v.substring(0, 30) // Tronca valori troppo lunghi
+                        }));
+                    }
+                    chunks.push([item]);
+                    currentChunk = [];
+                }
+            } else {
+                // Item sta nel chunk corrente
+                currentChunk.push(item);
+            }
         }
         
-        console.log(`📦 [CHECKOUT] Prodotti divisi in ${chunks.length} chunk (${chunkSize} prodotti/chunk)`);
+        // Aggiungi l'ultimo chunk se non vuoto
+        if (currentChunk.length > 0) {
+            chunks.push(currentChunk);
+        }
+        
+        console.log(`📦 [CHECKOUT] Prodotti divisi in ${chunks.length} chunk dinamici (max ${MAX_CHUNK_LENGTH} char/chunk)`);
         
         // Costruisci metadata con billingData suddiviso in campi separati per evitare limite 500 caratteri
         // OPTIMIZATION: NON salvare nomi prodotti (possono superare 500 char), recuperali dal DB
@@ -265,24 +299,41 @@ export const createCheckoutSession = async (req, res) => {
             guestEmail: guestEmail?.toString() || '',
             deliveryType: deliveryType?.toString() || 'shipping',
             shippingCost: (shippingResult.totalShipping || 0).toString(),
-            // Salva breakdown shipping per venditore (formato compatto)
-            vendorShippingCosts: JSON.stringify(
-                Object.entries(shippingResult.vendorShippingCosts || {}).reduce((acc, [vendorId, data]) => {
-                    acc[vendorId] = data.shippingCost || 0;
-                    return acc;
-                }, {})
-            ),
             appliedCouponCode: appliedCoupon?.couponCode?.toString() || '',
             appliedCouponId: appliedCoupon?._id?.toString() || '',
             discountAmount: (discountAmount || 0).toString(),
-            // Salva info ritiro in negozio se presente
-            pickupInfo: pickupInfo ? JSON.stringify(pickupInfo) : '',
         };
+        
+        // STRIPE FIX: Valida vendorShippingCosts e pickupInfo (anche loro possono essere grandi)
+        const vendorShippingString = JSON.stringify(
+            Object.entries(shippingResult.vendorShippingCosts || {}).reduce((acc, [vendorId, data]) => {
+                acc[vendorId] = data.shippingCost || 0;
+                return acc;
+            }, {})
+        );
+        metadata.vendorShippingCosts = vendorShippingString.length > 490 
+            ? vendorShippingString.substring(0, 490) 
+            : vendorShippingString;
+            
+        const pickupInfoString = pickupInfo ? JSON.stringify(pickupInfo) : '';
+        metadata.pickupInfo = pickupInfoString.length > 490 
+            ? pickupInfoString.substring(0, 490) 
+            : pickupInfoString;
 
-        // Salva numero di chunk e i chunk individuali
+        // Salva numero di chunk e i chunk individuali con VALIDAZIONE finale
         metadata.cartItems_count = chunks.length.toString();
         chunks.forEach((chunk, index) => {
-            metadata[`cartItems_${index}`] = JSON.stringify(chunk);
+            const chunkString = JSON.stringify(chunk);
+            
+            // STRIPE FIX: Validazione finale - se ancora troppo lungo, tronca (non dovrebbe mai succedere)
+            if (chunkString.length > 500) {
+                console.error('❌ [CHECKOUT] CHUNK TROPPO GRANDE - EMERGENCY TRUNCATE:', chunkString.length);
+                metadata[`cartItems_${index}`] = chunkString.substring(0, 490) + '...]'; // Tronca con indicatore
+            } else {
+                metadata[`cartItems_${index}`] = chunkString;
+            }
+            
+            console.log(`  └─ Chunk ${index}: ${chunkString.length} caratteri (${chunk.length} prodotti)`);
         });
 
 
@@ -358,6 +409,14 @@ export const createCheckoutSession = async (req, res) => {
         console.log('  - line_items:', lineItems.length, 'items');
         console.log('  - metadata keys:', Object.keys(metadata).length);
         
+        // Log dimensioni metadata per debug
+        const metadataSizes = Object.entries(metadata)
+            .filter(([key]) => key.startsWith('cartItems_') && key !== 'cartItems_count')
+            .map(([key, value]) => `${key}=${value.length}ch`);
+        if (metadataSizes.length > 0) {
+            console.log('  - chunk sizes:', metadataSizes.join(', '));
+        }
+        
         // Valida che tutti i metadata values siano stringhe
         const invalidMetadata = Object.entries(metadata).filter(([key, value]) => 
             value !== null && value !== undefined && typeof value !== 'string'
@@ -365,6 +424,16 @@ export const createCheckoutSession = async (req, res) => {
         if (invalidMetadata.length > 0) {
             console.error('❌ [CHECKOUT] Metadata non validi (devono essere stringhe):', invalidMetadata);
             throw new Error('Metadata validation failed: alcuni valori non sono stringhe');
+        }
+        
+        // STRIPE FIX: Valida che nessun metadata value superi 500 caratteri
+        const oversizedMetadata = Object.entries(metadata).filter(([key, value]) => 
+            value && value.length > 500
+        );
+        if (oversizedMetadata.length > 0) {
+            console.error('❌ [CHECKOUT] Metadata troppo grandi (max 500 char):', 
+                oversizedMetadata.map(([k, v]) => `${k}=${v.length}ch`));
+            throw new Error('Metadata validation failed: alcuni valori superano 500 caratteri');
         }
 
         // Se c'è uno sconto, crea un Coupon Stripe al volo e applicalo
