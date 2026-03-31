@@ -156,29 +156,36 @@ export const createCheckoutSession = async (req, res) => {
         console.log('💳 [CHECKOUT] Tutti i pagamenti vanno a Lucaniko Shop');
 
         // Converti i prodotti del carrello in formato Stripe
+        // STRIPE FIX: Valida tutti i campi per evitare null/undefined
         const lineItems = cartItems.map(item => {
             const price = item.price || 0;
             const categoryDescription = typeof item.category === 'string' 
                 ? item.category 
                 : item.category?.name || 'Prodotto';
             
+            // Valida campi obbligatori
+            if (!item._id || !item.name || !item.quantity) {
+                console.error('❌ [CHECKOUT] Item carrello non valido:', item);
+                throw new Error('Prodotto nel carrello mancante di dati obbligatori');
+            }
+            
             return {
                 price_data: {
                     currency: 'eur',
                     product_data: {
-                        name: item.name,
-                        description: categoryDescription,
-                        images: item.images && item.images.length > 0
-                            ? [item.images[item.images.length - 1].url]
+                        name: String(item.name), // STRIPE FIX: Converti sempre a stringa
+                        description: String(categoryDescription),
+                        images: item.images && item.images.length > 0 && item.images[item.images.length - 1]?.url
+                            ? [String(item.images[item.images.length - 1].url)]
                             : [],
                         metadata: {
-                            productId: item._id,
-                            sellerId: productsWithSeller[item._id], // SECURITY FIX: usa sellerId dal database
+                            productId: String(item._id), // STRIPE FIX: Converti a stringa
+                            sellerId: String(productsWithSeller[item._id] || ''), // STRIPE FIX: Fallback a stringa vuota
                         },
                     },
                     unit_amount: Math.round(price * 100),
                 },
-                quantity: item.quantity,
+                quantity: parseInt(item.quantity) || 1, // STRIPE FIX: Assicura numero intero
             };
         });
 
@@ -199,11 +206,12 @@ export const createCheckoutSession = async (req, res) => {
             console.log('🏪 [CHECKOUT] Ritiro in negozio - Nessun costo di spedizione');
         }
 
-        // Determina l'email del cliente
-        const customerEmail = req.user ? req.user.email : guestEmail;
+        // Determina l'email del cliente (VALIDAZIONE RIGOROSA)
+        const customerEmail = req.user?.email || guestEmail;
 
-        if (!customerEmail) {
-            return res.status(400).json({ message: 'Email cliente richiesta per il checkout' });
+        if (!customerEmail || typeof customerEmail !== 'string' || !customerEmail.includes('@')) {
+            console.error('❌ [CHECKOUT] Email non valida:', customerEmail);
+            return res.status(400).json({ message: 'Email cliente valida richiesta per il checkout' });
         }
 
         // Prepara le opzioni per la sessione Stripe
@@ -216,24 +224,25 @@ export const createCheckoutSession = async (req, res) => {
         
         // SOLUZIONE DEFINITIVA: Spezza cartItems in chunk da max 450 caratteri per rispettare limite Stripe 500
         // Questo permette carrelli ILLIMITATI (fino a 50 chiavi metadata Stripe = 200 prodotti max)
+        // STRIPE FIX: Valida tutti i valori prima di JSON.stringify
         const cartItemsCompact = cartItems.map(item => {
             const compactItem = {
-                productId: item._id,
-                sellerId: productsWithSeller[item._id], // <-- Dal database!
-                quantity: item.quantity,
-                price: item.price,
+                productId: String(item._id || ''), // STRIPE FIX: Converti a stringa con fallback
+                sellerId: String(productsWithSeller[item._id] || ''), // STRIPE FIX: Dal database con fallback
+                quantity: parseInt(item.quantity) || 1, // STRIPE FIX: Numero intero valido
+                price: parseFloat(item.price) || 0, // STRIPE FIX: Numero valido
             };
             
             // Aggiungi varianti solo se presenti, in formato COMPATTO
             if (item.selectedVariantSku) {
-                compactItem.vSku = item.selectedVariantSku;
+                compactItem.vSku = String(item.selectedVariantSku);
             }
             
             // Compatta selectedVariantAttributes rimuovendo campi superflui (_id, id)
             if (item.selectedVariantAttributes && Array.isArray(item.selectedVariantAttributes) && item.selectedVariantAttributes.length > 0) {
                 compactItem.vAttrs = item.selectedVariantAttributes.map(attr => ({
-                    k: attr.key,
-                    v: attr.value
+                    k: String(attr.key || ''),  // STRIPE FIX: Converti a stringa
+                    v: String(attr.value || '') // STRIPE FIX: Converti a stringa
                 }));
             }
             
@@ -250,11 +259,12 @@ export const createCheckoutSession = async (req, res) => {
         
         // Costruisci metadata con billingData suddiviso in campi separati per evitare limite 500 caratteri
         // OPTIMIZATION: NON salvare nomi prodotti (possono superare 500 char), recuperali dal DB
+        // STRIPE FIX: Assicurati che TUTTI i valori siano stringhe (mai null/undefined)
         const metadata = {
             userId: req.user ? req.user._id.toString() : 'guest',
-            guestEmail: guestEmail || '',
-            deliveryType: deliveryType,
-            shippingCost: shippingResult.totalShipping.toString(),
+            guestEmail: guestEmail?.toString() || '',
+            deliveryType: deliveryType?.toString() || 'shipping',
+            shippingCost: (shippingResult.totalShipping || 0).toString(),
             // Salva breakdown shipping per venditore (formato compatto)
             vendorShippingCosts: JSON.stringify(
                 Object.entries(shippingResult.vendorShippingCosts || {}).reduce((acc, [vendorId, data]) => {
@@ -262,9 +272,9 @@ export const createCheckoutSession = async (req, res) => {
                     return acc;
                 }, {})
             ),
-            appliedCouponCode: appliedCoupon?.couponCode || '',
+            appliedCouponCode: appliedCoupon?.couponCode?.toString() || '',
             appliedCouponId: appliedCoupon?._id?.toString() || '',
-            discountAmount: discountAmount ? discountAmount.toString() : '0',
+            discountAmount: (discountAmount || 0).toString(),
             // Salva info ritiro in negozio se presente
             pickupInfo: pickupInfo ? JSON.stringify(pickupInfo) : '',
         };
@@ -279,7 +289,12 @@ export const createCheckoutSession = async (req, res) => {
         // Aggiungi dati di fatturazione come campi separati (evita limite 500 caratteri Stripe)
         if (billingData) {
             // Tronca campi se superano 500 caratteri (limite Stripe per metadata)
-            const truncate = (str, maxLen = 500) => str && str.length > maxLen ? str.substring(0, maxLen) : (str || '');
+            // STRIPE FIX: Gestione esplicita di null/undefined per evitare StripeInvalidRequestError
+            const truncate = (str, maxLen = 500) => {
+                if (str === null || str === undefined) return '';
+                const strValue = String(str); // Converti sempre a stringa
+                return strValue.length > maxLen ? strValue.substring(0, maxLen) : strValue;
+            };
             
             metadata.billing_buyerType = truncate(billingData.buyerType);
             metadata.billing_nome = truncate(billingData.nome);
@@ -317,7 +332,7 @@ export const createCheckoutSession = async (req, res) => {
             cancel_url: `${process.env.FRONTEND_URL}/checkout/cancel`,
             // NON raccogliamo billing/shipping in Stripe perché già raccolti in BillingInfo.jsx
             // billing_address_collection: 'auto', // RIMOSSO - dati già nei metadata
-            customer_email: guestEmail || req.user?.email, // Pre-compila email per riconoscimento cliente
+            customer_email: customerEmail, // STRIPE FIX: Usa la variabile validata sopra (garantisce email valida)
             phone_number_collection: {
                 enabled: false // Non chiediamo telefono, già in BillingInfo
             },
@@ -337,6 +352,21 @@ export const createCheckoutSession = async (req, res) => {
             chunksCount: chunks.length
         });
 
+        // STRIPE FIX: Log di debug pre-invio per diagnosi errori
+        console.log('🔍 [CHECKOUT] Validazione pre-Stripe:');
+        console.log('  - customer_email:', customerEmail ? 'OK' : 'MISSING');
+        console.log('  - line_items:', lineItems.length, 'items');
+        console.log('  - metadata keys:', Object.keys(metadata).length);
+        
+        // Valida che tutti i metadata values siano stringhe
+        const invalidMetadata = Object.entries(metadata).filter(([key, value]) => 
+            value !== null && value !== undefined && typeof value !== 'string'
+        );
+        if (invalidMetadata.length > 0) {
+            console.error('❌ [CHECKOUT] Metadata non validi (devono essere stringhe):', invalidMetadata);
+            throw new Error('Metadata validation failed: alcuni valori non sono stringhe');
+        }
+
         // Se c'è uno sconto, crea un Coupon Stripe al volo e applicalo
         if (discountAmount && discountAmount > 0) {
             console.log('🎫 [CHECKOUT] Condizione sconto verificata - discountAmount:', discountAmount);
@@ -344,11 +374,12 @@ export const createCheckoutSession = async (req, res) => {
             
             try {
                 // Crea un coupon Stripe temporaneo
+                // STRIPE FIX: Assicura che amount_off sia valido e name sia stringa
                 const stripeCoupon = await stripe.coupons.create({
-                    amount_off: Math.round(discountAmount * 100),
+                    amount_off: Math.round(Math.abs(discountAmount) * 100), // Assicura valore positivo
                     currency: 'eur',
                     duration: 'once',
-                    name: appliedCoupon?.couponCode || 'Sconto',
+                    name: String(appliedCoupon?.couponCode || 'Sconto'),
                 });
 
                 console.log('✅ [CHECKOUT] Coupon Stripe creato:', stripeCoupon.id, '| amount_off:', stripeCoupon.amount_off);
@@ -363,11 +394,16 @@ export const createCheckoutSession = async (req, res) => {
                 console.error('⚠️ [CHECKOUT] Errore creazione coupon Stripe:', couponError.message);
                 console.error('⚠️ [CHECKOUT] Stack:', couponError.stack);
                 // Fallback: usa line item negativo
+                // STRIPE FIX: Converti nome coupon a stringa valida
+                const discountName = appliedCoupon?.couponCode 
+                    ? `Sconto (${String(appliedCoupon.couponCode)})` 
+                    : 'Sconto';
+                
                 lineItems.push({
                     price_data: {
                         currency: 'eur',
                         product_data: {
-                            name: appliedCoupon?.couponCode ? `Sconto (${appliedCoupon.couponCode})` : 'Sconto',
+                            name: discountName,
                             description: 'Sconto applicato al carrello',
                         },
                         unit_amount: -Math.round(discountAmount * 100),
@@ -396,6 +432,17 @@ export const createCheckoutSession = async (req, res) => {
         console.error('❌ [CHECKOUT] Message:', error.message);
         console.error('❌ [CHECKOUT] Stack:', error.stack);
         console.error('❌ [CHECKOUT] Name:', error.name);
+        
+        // STRIPE FIX: Log dettagliato errori Stripe per debug
+        if (error.type === 'StripeInvalidRequestError') {
+            console.error('❌ [CHECKOUT] STRIPE ERROR DETAILS:');
+            console.error('  - Type:', error.type);
+            console.error('  - Code:', error.code);
+            console.error('  - Param:', error.param);
+            console.error('  - StatusCode:', error.statusCode);
+            console.error('  - RequestId:', error.requestId);
+        }
+        
         console.error('❌ [CHECKOUT] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2));
         console.error('❌ [CHECKOUT] =====================================');
         
