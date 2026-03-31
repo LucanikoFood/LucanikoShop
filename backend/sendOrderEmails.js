@@ -63,6 +63,7 @@ async function sendEmailsForOrder(orderId, useProduction = false) {
       billingAddress: order.billingAddress,
       shippingAddress: order.shippingAddress,
       deliveryType: order.deliveryType,
+      customerNotes: order.customerNotes || '', // Note cliente
     };
 
     // Invia email al buyer
@@ -132,6 +133,19 @@ async function sendEmailsForOrder(orderId, useProduction = false) {
       // Calcola totale per questo venditore (solo i suoi prodotti)
       const vendorItemsPrice = vendorGroup.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
       
+      // Ottieni costo spedizione specifico di questo venditore
+      let vendorShippingCost = 0;
+      if (order.vendorShippingCosts && order.vendorShippingCosts.get(vendorId)) {
+        // Usa il costo specifico salvato nell'ordine
+        vendorShippingCost = order.vendorShippingCosts.get(vendorId);
+        console.log(`📦 [EMAIL] Spedizione ${vendorName}: €${vendorShippingCost.toFixed(2)} (da vendorShippingCosts)`);
+      } else {
+        // Fallback: dividi proporzionalmente in base al valore dei prodotti
+        const totalItemsValue = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        vendorShippingCost = (vendorItemsPrice / totalItemsValue) * order.shippingPrice;
+        console.log(`📦 [EMAIL] Spedizione ${vendorName}: €${vendorShippingCost.toFixed(2)} (proporzionale)`);
+      }
+      
       // Nome cliente per l'email
       const customerName = order.isGuestOrder 
         ? (order.billingAddress?.firstName + ' ' + order.billingAddress?.lastName || order.guestName || 'Cliente')
@@ -147,12 +161,13 @@ async function sendEmailsForOrder(orderId, useProduction = false) {
           customAttributes: item.product?.customAttributes || [] // Per tradurre i codici varianti
         })),
         itemsPrice: vendorItemsPrice,
-        shippingPrice: order.shippingPrice, // Totale spedizione (potremmo dividere proporzionalmente se necessario)
-        totalPrice: vendorItemsPrice + order.shippingPrice,
+        shippingPrice: vendorShippingCost, // Spedizione specifica di questo venditore
+        totalPrice: vendorItemsPrice + vendorShippingCost,
         customerName: customerName,
         billingAddress: order.billingAddress,
         shippingAddress: order.shippingAddress,
         deliveryType: order.deliveryType,
+        customerNotes: order.customerNotes || '', // Note cliente
       };
       
       try {

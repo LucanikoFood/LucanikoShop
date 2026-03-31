@@ -336,6 +336,18 @@ export const createCheckoutSession = async (req, res) => {
             console.log(`  └─ Chunk ${index}: ${chunkString.length} caratteri (${chunk.length} prodotti)`);
         });
 
+        // Salva note aggiuntive del cliente (se presenti)
+        if (billingData?.noteAggiuntive) {
+            const customerNotesString = String(billingData.noteAggiuntive).trim();
+            // Tronca a 500 caratteri se troppo lungo
+            metadata.customerNotes = customerNotesString.length > 500 
+                ? customerNotesString.substring(0, 497) + '...' 
+                : customerNotesString;
+            console.log(`📝 [CHECKOUT] Note cliente salvate: ${metadata.customerNotes.substring(0, 50)}...`);
+        } else {
+            metadata.customerNotes = '';
+        }
+
 
         // Aggiungi dati di fatturazione come campi separati (evita limite 500 caratteri Stripe)
         if (billingData) {

@@ -148,6 +148,13 @@ const orderSchema = new mongoose.Schema(
       required: true,
       default: 0.0
     },
+    // Costi spedizione suddivisi per venditore (per ordini multi-vendor)
+    // Formato: { "vendorId1": 6.00, "vendorId2": 7.00 }
+    vendorShippingCosts: {
+      type: Map,
+      of: Number,
+      required: false
+    },
     taxPrice: {
       type: Number,
       required: true,
@@ -242,6 +249,12 @@ const orderSchema = new mongoose.Schema(
     emailsSent: {
       type: Boolean,
       default: false
+    },
+    // Note aggiuntive del cliente sull'ordine
+    customerNotes: {
+      type: String,
+      required: false,
+      maxlength: 1000 // Limite ragionevole per note
     },
     // Sistema calcolo earnings per venditori (multivendor)
     vendorEarnings: [

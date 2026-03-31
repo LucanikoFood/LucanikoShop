@@ -99,11 +99,22 @@ export const sendNewOrderToVendorEmail = async (vendorEmail, companyName, orderN
     if (shipping.phone) shippingText += `Telefono: ${shipping.phone}`;
   }
 
+  // Costruisci sezione note cliente (se presenti)
+  let customerNotesHtml = '';
+  let customerNotesText = '';
+  if (orderData.customerNotes && orderData.customerNotes.trim() !== '') {
+    customerNotesHtml = `<div style="background: #e7f3ff; padding: 15px; margin: 20px 0; border-radius: 6px; border-left: 4px solid #004b75;">
+  <strong>📝 Note del cliente:</strong><br>
+  <em style="color: #333;">${orderData.customerNotes}</em>
+</div>`;
+    customerNotesText = `\n\nNote del cliente:\n"${orderData.customerNotes}"\n`;
+  }
+
   const msg = {
     to: vendorEmail,
     from: 'ordini@lucanikoshop.it',
     subject: 'Hai ricevuto un nuovo ordine 📦',
-    text: `Ciao ${companyName},\n\nhai ricevuto un nuovo ordine su Lucaniko Shop.\n\nDettagli ordine:\n\nNumero ordine: #${orderNumber}\nCliente: ${orderData.customerName}\n\nProdotti ordinati:\n${productsListText}\n\nImporto prodotti: ${itemsPrice}\nSpese di spedizione: ${shippingPrice}\nTotale ordine: ${totalPrice}\n\n${billingText}\n\n${shippingText}\n\nAccedi al tuo account: ${loginLink}\n\nTi ricordiamo di aggiornare lo stato dell'ordine una volta avviata la spedizione.\n\nBuon lavoro,\nIl team Lucaniko\n\nwww.lucanikoshop.it`,
+    text: `Ciao ${companyName},\n\nhai ricevuto un nuovo ordine su Lucaniko Shop.\n\nDettagli ordine:\n\nNumero ordine: #${orderNumber}\nCliente: ${orderData.customerName}\n\nProdotti ordinati:\n${productsListText}\n\nImporto prodotti: ${itemsPrice}\nSpese di spedizione: ${shippingPrice}\nTotale ordine: ${totalPrice}\n\n${billingText}\n\n${shippingText}${customerNotesText}\n\nAccedi al tuo account: ${loginLink}\n\nTi ricordiamo di aggiornare lo stato dell'ordine una volta avviata la spedizione.\n\nBuon lavoro,\nIl team Lucaniko\n\nwww.lucanikoshop.it`,
     html: `Ciao <strong>${companyName}</strong>,<br><br>
 hai ricevuto un nuovo ordine su <strong>Lucaniko Shop</strong>.<br><br>
 <strong>Dettagli ordine:</strong><br>
@@ -124,6 +135,7 @@ hai ricevuto un nuovo ordine su <strong>Lucaniko Shop</strong>.<br><br>
 <div style="background: #d1ecf1; padding: 15px; margin: 20px 0; border-radius: 6px;">
   ${shippingHtml}
 </div>
+${customerNotesHtml}
 <p style="margin: 1.5em 0;">
   <a href="${loginLink}" style="background: #004b75; color: #fff; padding: 10px 22px; border-radius: 6px; text-decoration: none; font-weight: bold;">👉 Accedi al tuo account</a>
 </p>
@@ -209,11 +221,22 @@ export const sendOrderConfirmationEmail = async (userEmail, userName, orderNumbe
     if (shipping.phone) shippingText += `Telefono: ${shipping.phone}`;
   }
 
+  // Costruisci sezione note cliente (se presenti) - per l'acquirente
+  let customerNotesHtml = '';
+  let customerNotesText = '';
+  if (orderData.customerNotes && orderData.customerNotes.trim() !== '') {
+    customerNotesHtml = `<div style="background: #e7f3ff; padding: 15px; margin: 20px 0; border-radius: 6px; border-left: 4px solid #004b75;">
+  <strong>📝 Le tue note sull'ordine:</strong><br>
+  <em style="color: #333;">${orderData.customerNotes}</em>
+</div>`;
+    customerNotesText = `\n\nLe tue note sull'ordine:\n"${orderData.customerNotes}"\n`;
+  }
+
   const msg = {
     to: userEmail,
     from: 'ordini@lucanikoshop.it',
     subject: 'Ordine confermato – Grazie per il tuo acquisto 🛒',
-    text: `Ciao ${userName},\n\ngrazie per il tuo acquisto su Lucaniko Shop!\n\nIl tuo ordine #${orderNumber} è stato ricevuto correttamente ed è in fase di lavorazione da parte dell'azienda venditrice.\n\nRiepilogo ordine:\n\nProdotti:\n${productsListText}\n\nImporto prodotti: ${itemsPrice}\nSpese di spedizione: ${shippingPrice}\nTotale: ${totalPrice}\n\n${billingText}\n\n${shippingText}\n\nGrazie per aver scelto Lucaniko Shop\ne per sostenere le aziende del territorio.\n\nIl team Lucaniko\n\nwww.lucanikoshop.it`,
+    text: `Ciao ${userName},\n\ngrazie per il tuo acquisto su Lucaniko Shop!\n\nIl tuo ordine #${orderNumber} è stato ricevuto correttamente ed è in fase di lavorazione da parte dell'azienda venditrice.\n\nRiepilogo ordine:\n\nProdotti:\n${productsListText}\n\nImporto prodotti: ${itemsPrice}\nSpese di spedizione: ${shippingPrice}\nTotale: ${totalPrice}\n\n${billingText}\n\n${shippingText}${customerNotesText}\n\nGrazie per aver scelto Lucaniko Shop\ne per sostenere le aziende del territorio.\n\nIl team Lucaniko\n\nwww.lucanikoshop.it`,
     html: `Ciao <strong>${userName}</strong>,<br><br>
 grazie per il tuo acquisto su <strong>Lucaniko Shop</strong>!<br><br>
 Il tuo ordine <b>#${orderNumber}</b> è stato ricevuto correttamente ed è in fase di lavorazione da parte dell'azienda venditrice.<br><br>
@@ -231,6 +254,7 @@ Il tuo ordine <b>#${orderNumber}</b> è stato ricevuto correttamente ed è in fa
 <div style="background: #d1ecf1; padding: 15px; margin: 20px 0; border-radius: 6px;">
   ${shippingHtml}
 </div>
+${customerNotesHtml}
 <br>
 Grazie per aver scelto Lucaniko Shop<br>
 e per sostenere le aziende del territorio.<br><br>

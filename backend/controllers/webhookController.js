@@ -372,6 +372,7 @@ export const handleStripeWebhook = async (req, res) => {
         },
         itemsPrice: Math.round(itemsSubtotal * 100) / 100, // Somma prodotti (senza spedizione)
         shippingPrice: shippingCost,
+        vendorShippingCosts: vendorShippingBreakdown || undefined, // Costi spedizione per venditore
         taxPrice: Math.round(totalIva * 100) / 100,
         discountAmount: discountAmount,
         appliedDiscount: appliedCouponId || undefined,
@@ -390,6 +391,12 @@ export const handleStripeWebhook = async (req, res) => {
       } else {
         orderData.buyer = userId;
         orderData.isGuestOrder = false;
+      }
+      
+      // Recupera note aggiuntive del cliente dai metadata (se presenti)
+      if (session.metadata.customerNotes && session.metadata.customerNotes.trim() !== '') {
+        orderData.customerNotes = session.metadata.customerNotes;
+        console.log('📝 [WEBHOOK] Note cliente recuperate:', orderData.customerNotes.substring(0, 100));
       }
       
       console.log('💾 [WEBHOOK] Order data completo:', JSON.stringify(orderData, null, 2));
@@ -658,7 +665,8 @@ export const handleStripeWebhook = async (req, res) => {
             shippingAddress: finalShippingAddress || order.shippingAddress, // Usa dati appena ricostruiti
             deliveryType: order.deliveryType,
             pickupAddress: order.pickupAddress ? 
-              `${order.pickupAddress.businessName}, ${order.pickupAddress.street}, ${order.pickupAddress.city}` : null
+              `${order.pickupAddress.businessName}, ${order.pickupAddress.street}, ${order.pickupAddress.city}` : null,
+            customerNotes: order.customerNotes || '' // Note cliente
           };
           
           await sendOrderConfirmationEmail(
@@ -721,7 +729,8 @@ export const handleStripeWebhook = async (req, res) => {
             shippingAddress: finalShippingAddress || order.shippingAddress, // Usa dati appena ricostruiti
             deliveryType: order.deliveryType,
             pickupAddress: order.pickupAddress ? 
-              `${order.pickupAddress.businessName}, ${order.pickupAddress.street}, ${order.pickupAddress.city}` : null
+              `${order.pickupAddress.businessName}, ${order.pickupAddress.street}, ${order.pickupAddress.city}` : null,
+            customerNotes: order.customerNotes || '' // Note cliente
           };
 
           const emailPromise = sendNewOrderToVendorEmail(
