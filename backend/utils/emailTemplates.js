@@ -544,6 +544,42 @@ Il team Lucaniko<br><br>
   }
 };
 
+// Email recupero password
+export const sendPasswordResetEmail = async (userEmail, userName, resetUrl) => {
+  const msg = {
+    to: userEmail,
+    from: 'info@lucanikoshop.it',
+    subject: 'Recupero password - Lucaniko Shop',
+    text: `Ciao ${userName},\n\nabbiamo ricevuto una richiesta di recupero password per il tuo account su Lucaniko Shop.\n\nClicca sul link qui sotto per reimpostare la tua password:\n\n${resetUrl}\n\nIl link è valido per 1 ora.\n\nSe non hai richiesto il recupero della password, ignora questa email.\n\nCordiali saluti,\nIl team Lucaniko\n\nwww.lucanikoshop.it`,
+    html: `Ciao <strong>${userName}</strong>,<br><br>
+abbiamo ricevuto una richiesta di recupero password per il tuo account su <strong>Lucaniko Shop</strong>.<br><br>
+<p style="margin: 1.5em 0;">
+  <a href="${resetUrl}" style="background: #004b75; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; display: inline-block;">🔐 Reimposta la password</a>
+</p>
+<p style="color: #666; font-size: 14px;">Oppure copia e incolla questo link nel browser:</p>
+<p style="color: #004b75; font-size: 12px; word-break: break-all;">${resetUrl}</p>
+<br>
+<p style="color: #666; font-size: 14px;"><strong>Il link è valido per 1 ora.</strong></p>
+<p style="color: #999; font-size: 13px; margin-top: 2em;">Se non hai richiesto il recupero della password, ignora questa email.</p>
+<br>
+Cordiali saluti,<br>
+Il team Lucaniko<br><br>
+<a href="https://www.lucanikoshop.it" style="color: #004b75; text-decoration: underline;">www.lucanikoshop.it</a>`
+  };
+
+  try {
+    await sgMail.send(msg);
+  } catch (error) {
+    console.error('[EMAIL DEBUG] ❌ ERRORE invio email recupero password:', error);
+    console.error('[EMAIL DEBUG] Dettagli errore:', {
+      message: error.message,
+      code: error.code,
+      response: error.response?.body
+    });
+    throw error;
+  }
+};
+
 // Email notifica registrazione venditore con pagamento completato (inviata all'admin)
 export const sendVendorRegistrationNotificationToAdmin = async (vendorData) => {
   const {

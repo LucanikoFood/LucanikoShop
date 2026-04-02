@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getProfile, googleCallback, getVendorProfile, updateVendorProfile, updateProfile } from '../controllers/authController.js';
+import { register, login, getProfile, googleCallback, getVendorProfile, updateVendorProfile, updateProfile, forgotPassword, resetPassword } from '../controllers/authController.js';
 import { protect } from '../middlewares/auth.js';
 import passport from '../config/passport.js';
 import { authLimiter } from '../middlewares/rateLimiter.js';
@@ -9,6 +9,10 @@ const router = express.Router();
 // Rotte pubbliche con rate limiting
 router.post('/register', authLimiter, register);
 router.post('/login', authLimiter, login);
+
+// Rotte recupero password (pubbliche con rate limiting)
+router.post('/forgot-password', authLimiter, forgotPassword);
+router.post('/reset-password/:token', authLimiter, resetPassword);
 
 // Google OAuth
 router.get(

@@ -20,6 +20,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 // Lazy loading delle pagine per ridurre il bundle iniziale e migliorare le performance
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const ResetPassword = lazy(() => import('./pages/ResetPassword'));
 const AuthSuccess = lazy(() => import('./pages/AuthSuccess'));
 const AuthError = lazy(() => import('./pages/AuthError'));
 const Products = lazy(() => import('./pages/Products'));
@@ -109,7 +110,7 @@ function AppContent() {
 
   // Pagine dove NON mostrare il carosello
   const hideCarouselPaths = ['/login', '/register', '/cart', '/categories', '/products/new'];
-  const shouldShowCarousel = !hideCarouselPaths.includes(location.pathname) && !location.pathname.startsWith('/products/edit/');
+  const shouldShowCarousel = !hideCarouselPaths.includes(location.pathname) && !location.pathname.startsWith('/products/edit/') && !location.pathname.startsWith('/reset-password/');
 
   return (
     <>
@@ -133,6 +134,7 @@ function AppContent() {
           <Route path="/" element={<Products />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/auth/success" element={<AuthSuccess />} />
           <Route path="/auth/error" element={<AuthError />} />
           <Route path="/pending-approval" element={<PendingApproval />} />

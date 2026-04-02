@@ -84,9 +84,10 @@ export const updateProfile = async (req, res) => {
   }
 };
 import Stripe from 'stripe';
+import crypto from 'crypto';
 import User from '../models/User.js';
 import generateToken from '../utils/generateToken.js';
-import { sendWelcomeEmail, sendApprovalEmail, sendVendorRegistrationEmail } from '../utils/emailTemplates.js';
+import { sendWelcomeEmail, sendApprovalEmail, sendVendorRegistrationEmail, sendPasswordResetEmail } from '../utils/emailTemplates.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -673,6 +674,117 @@ export const updateVendorProfile = async (req, res) => {
     });
   } catch (error) {
     console.error('[UPDATE VENDOR PROFILE] Errore:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Richiedi reset password
+// @route   POST /api/auth/forgot-password
+// @access  Public
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Inserisci la tua email' });
+    }
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      // Per sicurezza, non rivelare se l'email esiste o meno
+      return res.json({ 
+        message: 'Se l\'email esiste nel sistema, riceverai un link per il reset della password' 
+      });
+    }
+
+    // Genera token di reset
+    const resetToken = user.getResetPasswordToken();
+
+    // Salva l'utente con il token (senza validazione password)
+    await user.save({ validateBeforeSave: false });
+
+    // Crea URL di reset
+    const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+    try {
+      // Invia email
+      await sendPasswordResetEmail(user.email, user.name, resetUrl);
+
+      res.json({ 
+        message: 'Se l\'email esiste nel sistema, riceverai un link per il reset della password' 
+      });
+    } catch (error) {
+      console.error('[FORGOT PASSWORD] Errore invio email:', error);
+      
+      // Se l'invio email fallisce, rimuovi il token
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpire = undefined;
+      await user.save({ validateBeforeSave: false });
+
+      return res.status(500).json({ 
+        message: 'Errore nell\'invio dell\'email. Riprova più tardi.' 
+      });
+    }
+  } catch (error) {
+    console.error('[FORGOT PASSWORD] Errore:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Reset password con token
+// @route   POST /api/auth/reset-password/:token
+// @access  Public
+export const resetPassword = async (req, res) => {
+  try {
+    const { password } = req.body;
+    const { token } = req.params;
+
+    // Validazione password robusta
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/;
+    
+    if (!password) {
+      return res.status(400).json({ 
+        message: 'La password è obbligatoria' 
+      });
+    }
+
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({ 
+        message: 'La password deve essere di almeno 8 caratteri e contenere almeno una maiuscola, una minuscola, un numero e un simbolo' 
+      });
+    }
+
+    // Hash il token ricevuto per confrontarlo con quello nel database
+    const resetPasswordToken = crypto
+      .createHash('sha256')
+      .update(token)
+      .digest('hex');
+
+    // Trova l'utente con il token valido e non scaduto
+    const user = await User.findOne({
+      resetPasswordToken,
+      resetPasswordExpire: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Token non valido o scaduto' 
+      });
+    }
+
+    // Imposta la nuova password
+    user.password = password;
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save();
+
+    res.json({ 
+      message: 'Password reimpostata con successo. Ora puoi effettuare il login.' 
+    });
+  } catch (error) {
+    console.error('[RESET PASSWORD] Errore:', error);
     res.status(500).json({ message: error.message });
   }
 };
