@@ -706,9 +706,47 @@ const ProductDetail = () => {
             </Card.Body>
           </Card>
 
+          {/* BOTTONI */}
+          <div className="d-grid gap-2">
+            <Button
+              variant="primary"
+              size="lg"
+              className="btn-custom-cart"
+              disabled={
+                (Array.isArray(product.variants) && product.variants.length > 0)
+                  ? !(selectedVariant && selectedVariant.stock > 0 && product.isActive)
+                  : !(product.stock > 0 && product.isActive)
+              }
+              onClick={handleAddToCart}
+            >
+              {(Array.isArray(product.variants) && product.variants.length > 0)
+                ? (selectedVariant && selectedVariant.stock > 0 && product.isActive
+                    ? '🛒 Aggiungi al carrello (Jamm bell!)'
+                    : '🛒 Aggiungi al carrello (Jamm bell!)')
+                : (product.stock > 0 && product.isActive ? '🛒 Aggiungi al carrello' : 'Non disponibile')}
+            </Button>
+            <Button
+              variant="success"
+              size="lg"
+              className="mt-2"
+              disabled={
+                (Array.isArray(product.variants) && product.variants.length > 0)
+                  ? !(selectedVariant && selectedVariant.stock > 0 && product.isActive)
+                  : !(product.stock > 0 && product.isActive)
+              }
+              onClick={handleBuyNow}
+            >
+              {(Array.isArray(product.variants) && product.variants.length > 0)
+                ? (selectedVariant && selectedVariant.stock > 0 && product.isActive
+                    ? '🌶️ Acquista Ora (Mò Stess!)'
+                    : '🌶️ Acquista Ora (Mò Stess!)')
+                  : (product.stock > 0 && product.isActive ? '🌶️ Acquista Ora (Mò Stess!)' : 'Non disponibile')}
+            </Button>
+          </div>
+
           {/* DESCRIZIONE */}
           {product.description && (
-            <Card className="mb-3">
+            <Card className="mb-3 mt-3">
               <Card.Body>
                 <h5 style={{ color: '#00bf63', fontWeight: 700 }}>Descrizione</h5>
                 <p style={{ whiteSpace: 'pre-line' }}>
@@ -828,43 +866,7 @@ const ProductDetail = () => {
             </Alert>
           )}
 
-          {/* BOTTONI */}
-          <div className="d-grid gap-2">
-            <Button
-              variant="primary"
-              size="lg"
-              className="btn-custom-cart"
-              disabled={
-                (Array.isArray(product.variants) && product.variants.length > 0)
-                  ? !(selectedVariant && selectedVariant.stock > 0 && product.isActive)
-                  : !(product.stock > 0 && product.isActive)
-              }
-              onClick={handleAddToCart}
-            >
-              {(Array.isArray(product.variants) && product.variants.length > 0)
-                ? (selectedVariant && selectedVariant.stock > 0 && product.isActive
-                    ? '🛒 Aggiungi al carrello (Jamm bell!)'
-                    : '🛒 Aggiungi al carrello (Jamm bell!)')
-                : (product.stock > 0 && product.isActive ? '🛒 Aggiungi al carrello' : 'Non disponibile')}
-            </Button>
-            <Button
-              variant="success"
-              size="lg"
-              className="mt-2"
-              disabled={
-                (Array.isArray(product.variants) && product.variants.length > 0)
-                  ? !(selectedVariant && selectedVariant.stock > 0 && product.isActive)
-                  : !(product.stock > 0 && product.isActive)
-              }
-              onClick={handleBuyNow}
-            >
-              {(Array.isArray(product.variants) && product.variants.length > 0)
-                ? (selectedVariant && selectedVariant.stock > 0 && product.isActive
-                    ? '🌶️ Acquista Ora (Mò Stess!)'
-                    : '🌶️ Acquista Ora (Mò Stess!)')
-                  : (product.stock > 0 && product.isActive ? '🌶️ Acquista Ora (Mò Stess!)' : 'Non disponibile')}
-            </Button>
-          </div>
+          
         </Col>
       </Row>
 
