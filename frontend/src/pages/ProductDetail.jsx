@@ -287,9 +287,16 @@ const ProductDetail = () => {
     
     let finalPrice = 0;
     
-    if (product.hasVariants && selectedVariant && selectedVariant.price != null) {
-      finalPrice = selectedVariant.price;
+    // Se il prodotto ha varianti E una variante è selezionata
+    if (product.hasVariants && selectedVariant) {
+      // Usa il prezzo scontato della variante se disponibile, altrimenti il prezzo normale
+      if (selectedVariant.discountedPrice != null) {
+        finalPrice = selectedVariant.discountedPrice;
+      } else if (selectedVariant.price != null) {
+        finalPrice = selectedVariant.price;
+      }
     } 
+    // Se non ha varianti, usa il prezzo del prodotto
     else if (product.hasActiveDiscount && product.discountedPrice != null) {
       finalPrice = product.discountedPrice;
     } else if (product.originalPrice != null) {
@@ -306,9 +313,9 @@ const ProductDetail = () => {
     const productToAdd = {
       ...product,
       price: finalPrice,
-      originalPrice: product.originalPrice || product.price || finalPrice,
-      discountedPrice: product.hasActiveDiscount ? product.discountedPrice : undefined,
-      hasActiveDiscount: product.hasActiveDiscount || false,
+      originalPrice: (product.hasVariants && selectedVariant?.originalPrice) || product.originalPrice || product.price || finalPrice,
+      discountedPrice: (product.hasVariants && selectedVariant?.discountedPrice) || (product.hasActiveDiscount ? product.discountedPrice : undefined),
+      hasActiveDiscount: (product.hasVariants && selectedVariant?.discountedPrice != null) || product.hasActiveDiscount || false,
       discountPercentage: product.discountPercentage || 0,
       ...(product.hasVariants && selectedVariant ? {
         selectedVariantSku: selectedVariant.sku,
@@ -337,9 +344,16 @@ const ProductDetail = () => {
     
     let finalPrice = 0;
     
-    if (product.hasVariants && selectedVariant && selectedVariant.price != null) {
-      finalPrice = selectedVariant.price;
+    // Se il prodotto ha varianti E una variante è selezionata
+    if (product.hasVariants && selectedVariant) {
+      // Usa il prezzo scontato della variante se disponibile, altrimenti il prezzo normale
+      if (selectedVariant.discountedPrice != null) {
+        finalPrice = selectedVariant.discountedPrice;
+      } else if (selectedVariant.price != null) {
+        finalPrice = selectedVariant.price;
+      }
     } 
+    // Se non ha varianti, usa il prezzo del prodotto
     else if (product.hasActiveDiscount && product.discountedPrice != null) {
       finalPrice = product.discountedPrice;
     } else if (product.originalPrice != null) {
@@ -356,9 +370,9 @@ const ProductDetail = () => {
     const productToAdd = {
       ...product,
       price: finalPrice,
-      originalPrice: product.originalPrice || product.price || finalPrice,
-      discountedPrice: product.hasActiveDiscount ? product.discountedPrice : undefined,
-      hasActiveDiscount: product.hasActiveDiscount || false,
+      originalPrice: (product.hasVariants && selectedVariant?.originalPrice) || product.originalPrice || product.price || finalPrice,
+      discountedPrice: (product.hasVariants && selectedVariant?.discountedPrice) || (product.hasActiveDiscount ? product.discountedPrice : undefined),
+      hasActiveDiscount: (product.hasVariants && selectedVariant?.discountedPrice != null) || product.hasActiveDiscount || false,
       discountPercentage: product.discountPercentage || 0,
       ...(product.hasVariants && selectedVariant ? {
         selectedVariantSku: selectedVariant.sku,
@@ -614,7 +628,7 @@ const ProductDetail = () => {
                   {selectedVariant ? (
                     <div className="d-flex justify-content-between align-items-center mt-3">
                       <div>
-                        {product.hasActiveDiscount && product.discountedPrice && product.originalPrice ? (
+                        {(product.hasActiveDiscount || selectedVariant.discountedPrice != null) && (selectedVariant.originalPrice != null || product.originalPrice != null) ? (
                           <>
                             <div className="d-flex align-items-center gap-2 mb-1">
                               <span style={{ color: '#004b75', fontWeight: 700, fontSize: '1.2rem' }}>
@@ -630,7 +644,7 @@ const ProductDetail = () => {
                             </div>
                             <div>
                               <small className="text-muted" style={{ textDecoration: 'line-through' }}>
-                                €{typeof selectedVariant.originalPrice === 'number' ? selectedVariant.originalPrice.toFixed(2) : product.originalPrice.toFixed(2)}
+                                €{typeof selectedVariant.originalPrice === 'number' ? selectedVariant.originalPrice.toFixed(2) : (product.originalPrice != null ? product.originalPrice.toFixed(2) : selectedVariant.price.toFixed(2))}
                               </small>
                             </div>
                           </>

@@ -20,17 +20,21 @@ const ProductCard = ({ product, fromShop }) => {
   const [carouselActive, setCarouselActive] = useState(false);
   const cardRef = useRef(null);
 
-  // Calcola prezzo minimo e stock totale se ci sono varianti usando useMemo
-  const { minVariantPrice, totalVariantStock } = useMemo(() => {
+  // Calcola prezzo minimo, prezzo scontato minimo e stock totale se ci sono varianti usando useMemo
+  const { minVariantPrice, minVariantDiscountedPrice, minVariantOriginalPrice, totalVariantStock } = useMemo(() => {
     if (!Array.isArray(product.variants) || product.variants.length === 0) {
-      return { minVariantPrice: null, totalVariantStock: 0 };
+      return { minVariantPrice: null, minVariantDiscountedPrice: null, minVariantOriginalPrice: null, totalVariantStock: 0 };
     }
     
     const prices = product.variants.filter(v => typeof v.price === 'number').map(v => v.price);
+    const discountedPrices = product.variants.filter(v => typeof v.discountedPrice === 'number').map(v => v.discountedPrice);
+    const originalPrices = product.variants.filter(v => typeof v.originalPrice === 'number').map(v => v.originalPrice);
     const stocks = product.variants.filter(v => typeof v.stock === 'number').map(v => v.stock);
     
     return {
       minVariantPrice: prices.length > 0 ? Math.min(...prices) : null,
+      minVariantDiscountedPrice: discountedPrices.length > 0 ? Math.min(...discountedPrices) : null,
+      minVariantOriginalPrice: originalPrices.length > 0 ? Math.min(...originalPrices) : null,
       totalVariantStock: stocks.reduce((sum, stock) => sum + stock, 0)
     };
   }, [product.variants]);
@@ -351,13 +355,22 @@ const ProductCard = ({ product, fromShop }) => {
           
           <div className="d-flex justify-content-between align-items-center">
             <div className="d-flex align-items-center gap-2">
-              {product.hasActiveDiscount && product.originalPrice ? (
+              {product.hasActiveDiscount && product.originalPrice && !product.hasVariants ? (
                 <>
                   <h5 className="mb-0" style={{ fontSize: '1rem', color: '#004b75', fontWeight: 700 }}>
                     €{product.discountedPrice?.toFixed(2) || '0.00'}
                   </h5>
                   <small className="text-muted" style={{ textDecoration: 'line-through', fontSize: '0.85rem' }}>
                     €{product.originalPrice?.toFixed(2) || '0.00'}
+                  </small>
+                </>
+              ) : product.hasActiveDiscount && product.hasVariants && minVariantDiscountedPrice !== null && minVariantOriginalPrice !== null ? (
+                <>
+                  <h5 className="mb-0" style={{ fontSize: '1rem', color: '#004b75', fontWeight: 700 }}>
+                    da €{minVariantDiscountedPrice.toFixed(2)}
+                  </h5>
+                  <small className="text-muted" style={{ textDecoration: 'line-through', fontSize: '0.85rem' }}>
+                    €{minVariantOriginalPrice.toFixed(2)}
                   </small>
                 </>
               ) : (product.hasVariants || minVariantPrice !== null) ? (

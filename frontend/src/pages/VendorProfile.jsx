@@ -501,6 +501,40 @@ const VendorProfile = () => {
     }
   };
 
+  // Carica prodotti e categorie per il modal sconti (se non già caricati)
+  const loadProductsAndCategoriesForDiscount = async () => {
+    try {
+      // Carica prodotti se non già presenti
+      if (products.length === 0) {
+        const vendorId = (user.role === 'admin' && sellerId) ? sellerId : user._id;
+        let productsUrl = `${API_URL}/products/seller/my-products`;
+        if (user.role === 'admin' && sellerId) {
+          productsUrl = `${API_URL}/products/seller/my-products?vendorId=${sellerId}`;
+        }
+        
+        const productsRes = await fetch(productsUrl, {
+          headers: { Authorization: `Bearer ${user.token}` }
+        });
+        
+        if (productsRes.ok) {
+          const vendorProducts = await productsRes.json();
+          setProducts(vendorProducts);
+        }
+      }
+
+      // Carica categorie se non già presenti
+      if (categories.length === 0) {
+        const res = await fetch(`${API_URL}/categories`);
+        if (res.ok) {
+          const data = await res.json();
+          setCategories(data);
+        }
+      }
+    } catch (err) {
+      console.error('Errore caricamento prodotti e categorie:', err);
+    }
+  };
+
   // Carica categorie e sottocategorie
   const loadCategories = async () => {
     try {
@@ -968,7 +1002,10 @@ const VendorProfile = () => {
 
   // Elimina sconto
   // Gestisce l'apertura del modal per modificare uno sconto
-  const handleEditDiscount = (discount) => {
+  const handleEditDiscount = async (discount) => {
+    // Carica prodotti e categorie se non già presenti
+    await loadProductsAndCategoriesForDiscount();
+    
     setEditingDiscount(discount);
     // Pre-popola il form con i dati dello sconto
     setDiscountForm({
@@ -2165,7 +2202,10 @@ const VendorProfile = () => {
                 </div>
                 <Button 
                   variant="success" 
-                  onClick={() => setShowDiscountModal(true)}
+                  onClick={async () => {
+                    await loadProductsAndCategoriesForDiscount();
+                    setShowDiscountModal(true);
+                  }}
                 >
                   <i className="bi bi-plus-circle"></i> Nuovo Sconto
                 </Button>
