@@ -243,6 +243,8 @@ const ProductCard = ({ product, fromShop }) => {
                 sizes="(max-width: 576px) 180px, 280px"
                 alt={product.name}
                 className="product-card-img"
+                width="500"
+                height="500"
                 loading={idx === 0 ? 'eager' : 'lazy'}
                 fetchPriority={idx === 0 ? 'high' : 'auto'}
                 decoding="async"
