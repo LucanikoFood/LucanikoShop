@@ -168,8 +168,12 @@ export const validateCouponForCart = async (couponCode, cart, userId) => {
     }
 
     // Calcola il totale del carrello
+    // DISCOUNT FIX: Usa sempre il prezzo scontato se disponibile
     const cartTotal = cart.reduce((total, item) => {
-      return total + (item.price * item.quantity);
+      const itemPrice = (item.hasActiveDiscount && item.discountedPrice) 
+        ? item.discountedPrice 
+        : item.price || 0;
+      return total + (itemPrice * item.quantity);
     }, 0);
 
     // Verifica l'importo minimo

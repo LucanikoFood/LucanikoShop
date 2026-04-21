@@ -558,11 +558,17 @@ export const calculateShippingCost = async (req, res) => {
                     weight: productWeight
                 },
                 quantity: item.quantity,
-                price: item.price || product.price || 0
+                // DISCOUNT FIX: Usa prezzo scontato se disponibile, altrimenti prezzo normale, altrimenti prezzo dal DB
+                price: (item.hasActiveDiscount && item.discountedPrice) 
+                    ? item.discountedPrice 
+                    : (item.price || product.price || 0)
             });
 
-            // Accumula il totale del carrello usando il prezzo dal carrello
-            totalCartValue += (item.price || product.price || 0) * item.quantity;
+            // Accumula il totale del carrello usando il prezzo corretto (scontato se disponibile)
+            const itemPrice = (item.hasActiveDiscount && item.discountedPrice) 
+                ? item.discountedPrice 
+                : (item.price || product.price || 0);
+            totalCartValue += itemPrice * item.quantity;
         }
 
         // Calcola spedizione per ogni venditore

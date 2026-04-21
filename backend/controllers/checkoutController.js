@@ -32,10 +32,16 @@ export const createCheckoutSession = async (req, res) => {
 
         // Calcola totale carrello
         console.log('💰 [CHECKOUT] Calcolo totale carrello...');
-        const cartTotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        // DISCOUNT FIX: Usa sempre il prezzo scontato per ogni prodotto se disponibile
+        const cartTotal = cartItems.reduce((sum, item) => {
+            const itemPrice = (item.hasActiveDiscount && item.discountedPrice) 
+                ? item.discountedPrice 
+                : item.price || 0;
+            return sum + (itemPrice * item.quantity);
+        }, 0);
         const discountedTotal = cartTotal - (discountAmount || 0);
 
-        console.log('💰 [CHECKOUT] Totale: €' + cartTotal.toFixed(2), '| Dopo sconto: €' + discountedTotal.toFixed(2));
+        console.log('💰 [CHECKOUT] Totale: €' + cartTotal.toFixed(2), '| Dopo sconto coupon: €' + discountedTotal.toFixed(2));
 
         // Raggruppa items per venditore
         console.log('🔍 [CHECKOUT] Inizio loop prodotti...');
@@ -158,7 +164,10 @@ export const createCheckoutSession = async (req, res) => {
         // Converti i prodotti del carrello in formato Stripe
         // STRIPE FIX: Valida tutti i campi per evitare null/undefined
         const lineItems = cartItems.map(item => {
-            const price = item.price || 0;
+            // DISCOUNT FIX: Usa sempre il prezzo scontato se disponibile
+            const price = (item.hasActiveDiscount && item.discountedPrice) 
+                ? item.discountedPrice 
+                : item.price || 0;
             const categoryDescription = typeof item.category === 'string' 
                 ? item.category 
                 : item.category?.name || 'Prodotto';
@@ -226,11 +235,16 @@ export const createCheckoutSession = async (req, res) => {
         // Questo permette carrelli ILLIMITATI (fino a 50 chiavi metadata Stripe = 200 prodotti max)
         // STRIPE FIX: Valida tutti i valori prima di JSON.stringify
         const cartItemsCompact = cartItems.map(item => {
+            // DISCOUNT FIX: Usa sempre il prezzo scontato se disponibile
+            const finalPrice = (item.hasActiveDiscount && item.discountedPrice) 
+                ? item.discountedPrice 
+                : item.price || 0;
+            
             const compactItem = {
                 productId: String(item._id || ''), // STRIPE FIX: Converti a stringa con fallback
                 sellerId: String(productsWithSeller[item._id] || ''), // STRIPE FIX: Dal database con fallback
                 quantity: parseInt(item.quantity) || 1, // STRIPE FIX: Numero intero valido
-                price: parseFloat(item.price) || 0, // STRIPE FIX: Numero valido
+                price: parseFloat(finalPrice) || 0, // DISCOUNT FIX: Usa prezzo scontato se disponibile
             };
             
             // Aggiungi varianti solo se presenti, in formato COMPATTO
