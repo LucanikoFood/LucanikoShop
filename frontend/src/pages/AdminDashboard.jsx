@@ -1046,6 +1046,7 @@ const AdminDashboard = () => {
         await eventAPI.updateEvent(editingEvent._id, dataToSave, user.token);
         setEventSuccessMessage('Evento aggiornato con successo!');
       } else {
+        await eventAPI.createEvent(dataToSave, user.token);
         setEventSuccessMessage('Evento creato con successo!');
       }
       
