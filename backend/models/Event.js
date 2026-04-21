@@ -36,7 +36,7 @@ const eventSchema = new mongoose.Schema({
     required: false,
     trim: true
   },
-  category: {
+  categories: [{
     type: String,
     enum: [
       'Sagre & Eventi Enogastronomici',
@@ -44,9 +44,8 @@ const eventSchema = new mongoose.Schema({
       'Festival, Spettacoli & Concerti',
       'Eventi Sportivi',
       'Fiere & Manifestazioni territoriali'
-    ],
-    required: true
-  },
+    ]
+  }],
   eventDates: [{
     type: Date,
     required: true
@@ -73,7 +72,7 @@ const eventSchema = new mongoose.Schema({
 
 // Indici per ottimizzare le query
 eventSchema.index({ status: 1, eventDates: 1 }); // Query pubblica: attivi ordinati per data evento
-eventSchema.index({ category: 1 }); // Filtro per categoria
+eventSchema.index({ categories: 1 }); // Filtro per categorie
 eventSchema.index({ city: 1 }); // Filtro per città
 eventSchema.index({ createdAt: -1 }); // Sort per data creazione (admin)
 eventSchema.index({ title: 'text', description: 'text', company: 'text' }); // Ricerca full-text

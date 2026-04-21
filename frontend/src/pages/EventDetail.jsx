@@ -81,7 +81,7 @@ const EventDetail = () => {
       <SEOHelmet
         title={`${event.title} - Eventi`}
         description={event.description}
-        keywords={`evento, ${event.category}, ${event.city}, ${event.company}`}
+        keywords={`evento, ${event.categories ? event.categories.join(', ') : ''}, ${event.city}, ${event.company}`}
         type="article"
       />
 
@@ -152,12 +152,22 @@ const EventDetail = () => {
           {/* COLONNA DETTAGLI */}
           <Col lg={6}>
             <div className="mb-3">
-              <Badge 
-                className="mb-2" 
-                style={{ fontSize: '0.9rem', padding: '8px 14px', backgroundColor: '#004b75', color: '#fff' }}
-              >
-                {event.category}
-              </Badge>
+              <div className="mb-2 d-flex flex-wrap gap-2">
+                {event.categories && event.categories.length > 0 ? (
+                  event.categories.map((cat, idx) => (
+                    <Badge 
+                      key={idx}
+                      style={{ fontSize: '0.85rem', padding: '8px 14px', backgroundColor: '#004b75', color: '#fff' }}
+                    >
+                      {cat}
+                    </Badge>
+                  ))
+                ) : (
+                  <Badge style={{ fontSize: '0.85rem', padding: '8px 14px', backgroundColor: '#6c757d', color: '#fff' }}>
+                    Nessuna categoria
+                  </Badge>
+                )}
+              </div>
               <h1 style={{ color: '#004b75', fontWeight: 700, fontSize: '2.2rem' }}>
                 {event.title}
               </h1>

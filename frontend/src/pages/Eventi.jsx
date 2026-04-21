@@ -51,18 +51,20 @@ const Eventi = () => {
   // Filtra eventi in base alla ricerca e categoria
   const filteredEvents = events.filter(event => {
     // Filtro categoria
-    if (selectedCategory && event.category !== selectedCategory) {
+    if (selectedCategory && (!event.categories || !event.categories.includes(selectedCategory))) {
       return false;
     }
     // Filtro ricerca
     if (!searchTerm.trim()) return true;
     const search = searchTerm.toLowerCase();
+    // Ricerca anche nelle categorie multiple
+    const categoriesText = event.categories ? event.categories.join(' ').toLowerCase() : '';
     return (
       event.title?.toLowerCase().includes(search) ||
       event.description?.toLowerCase().includes(search) ||
       event.company?.toLowerCase().includes(search) ||
       event.city?.toLowerCase().includes(search) ||
-      event.category?.toLowerCase().includes(search)
+      categoriesText.includes(search)
     );
   });
 
@@ -305,10 +307,18 @@ const Eventi = () => {
                   }}
                 >
                   <Card.Body>
-                    <div className="mb-2">
-                      <Badge style={{ fontSize: '0.75rem', backgroundColor: '#004b75', color: '#fff' }}>
-                        {event.category}
-                      </Badge>
+                    <div className="mb-2 d-flex flex-wrap gap-1">
+                      {event.categories && event.categories.length > 0 ? (
+                        event.categories.map((cat, idx) => (
+                          <Badge key={idx} style={{ fontSize: '0.7rem', backgroundColor: '#004b75', color: '#fff' }}>
+                            {cat}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge style={{ fontSize: '0.7rem', backgroundColor: '#6c757d', color: '#fff' }}>
+                          Nessuna categoria
+                        </Badge>
+                      )}
                     </div>
                     <h5 style={{ color: '#004b75', fontWeight: 600, marginBottom: '12px' }}>
                       {event.title}

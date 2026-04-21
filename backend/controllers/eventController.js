@@ -62,11 +62,11 @@ export const getEventById = async (req, res) => {
 // @access  Private/Admin
 export const createEvent = async (req, res) => {
   try {
-    const { title, description, company, city, address, phone, website, category, eventDates, eventTime, images, status } = req.body;
+    const { title, description, company, city, address, phone, website, categories, eventDates, eventTime, images, status } = req.body;
 
     // Validazione campi obbligatori
-    if (!title || !description || !company || !city || !category || !eventDates || !Array.isArray(eventDates) || eventDates.length === 0) {
-      return res.status(400).json({ message: 'Campi obbligatori mancanti o eventDates non valido' });
+    if (!title || !description || !company || !city || !categories || !Array.isArray(categories) || categories.length === 0 || !eventDates || !Array.isArray(eventDates) || eventDates.length === 0) {
+      return res.status(400).json({ message: 'Campi obbligatori mancanti, categories o eventDates non validi' });
     }
 
     const event = new Event({
@@ -77,7 +77,7 @@ export const createEvent = async (req, res) => {
       address,
       phone,
       website,
-      category,
+      categories,
       eventDates,
       eventTime,
       images: images || [],
@@ -97,7 +97,7 @@ export const createEvent = async (req, res) => {
 // @access  Private/Admin
 export const updateEvent = async (req, res) => {
   try {
-    const { title, description, company, city, address, phone, website, category, eventDates, eventTime, images, status } = req.body;
+    const { title, description, company, city, address, phone, website, categories, eventDates, eventTime, images, status } = req.body;
 
     const event = await Event.findById(req.params.id);
     if (!event) {
@@ -111,7 +111,7 @@ export const updateEvent = async (req, res) => {
     event.address = address !== undefined ? address : event.address;
     event.phone = phone || event.phone;
     event.website = website !== undefined ? website : event.website;
-    event.category = category || event.category;
+    event.categories = categories || event.categories;
     event.eventDates = eventDates || event.eventDates;
     event.eventTime = eventTime !== undefined ? eventTime : event.eventTime;
     event.images = images !== undefined ? images : event.images;

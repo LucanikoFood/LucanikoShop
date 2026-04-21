@@ -84,7 +84,7 @@ const AdminDashboard = () => {
     address: '',
     phone: '',
     website: '',
-    category: 'Sagre & Eventi Enogastronomici',
+    categories: [],
     eventDates: [],
     eventTime: '',
     status: 'active'
@@ -757,7 +757,7 @@ const AdminDashboard = () => {
         address: event.address || '',
         phone: event.phone || '',
         website: event.website || '',
-        category: event.category || 'Sagre & Eventi Enogastronomici',
+        categories: event.categories || [],
         eventDates: event.eventDates ? event.eventDates.map(d => new Date(d).toISOString().split('T')[0]) : [],
         eventTime: event.eventTime || '',
         status: event.status || 'active'
@@ -788,7 +788,7 @@ const AdminDashboard = () => {
         city: '',
         address: '',
         phone: '',
-        category: 'Sagre & Eventi Enogastronomici',
+        categories: [],
         website: '',
         eventDates: [],
         eventTime: '',
@@ -809,7 +809,7 @@ const AdminDashboard = () => {
       company: '',
       city: '',
       phone: '',
-      category: 'Sagre & Eventi Enogastronomici',
+      categories: [],
       website: '',
       eventDates: [],
       eventTime: '',
@@ -930,8 +930,9 @@ const AdminDashboard = () => {
     
     if (!eventFormData.title || !eventFormData.description || !eventFormData.company ||
         !eventFormData.city || 
+        !eventFormData.categories || eventFormData.categories.length === 0 ||
         !eventFormData.eventDates || eventFormData.eventDates.length === 0) {
-      showAlert('Compila tutti i campi obbligatori, inclusa almeno una data', 'warning');
+      showAlert('Compila tutti i campi obbligatori, inclusa almeno una categoria e almeno una data', 'warning');
       return;
     }
 
@@ -1866,9 +1867,19 @@ const AdminDashboard = () => {
                         </td>
                         <td>{event.eventTime || '-'}</td>
                         <td>
-                          <Badge bg="info" style={{ fontSize: '0.75rem' }}>
-                            {event.category}
-                          </Badge>
+                          <div className="d-flex flex-wrap gap-1">
+                            {event.categories && event.categories.length > 0 ? (
+                              event.categories.map((cat, idx) => (
+                                <Badge key={idx} bg="info" style={{ fontSize: '0.7rem' }}>
+                                  {cat}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge bg="secondary" style={{ fontSize: '0.7rem' }}>
+                                Nessuna
+                              </Badge>
+                            )}
+                          </div>
                         </td>
                         <td>
                           <Badge bg={event.status === 'active' ? 'success' : 'secondary'}>
@@ -2756,18 +2767,49 @@ const AdminDashboard = () => {
             </Row>
 
             <Form.Group className="mb-3">
-              <Form.Label>Categoria *</Form.Label>
-              <Form.Select
-                value={eventFormData.category}
-                onChange={(e) => setEventFormData({ ...eventFormData, category: e.target.value })}
-                required
-              >
-                <option value="Sagre & Eventi Enogastronomici">Sagre & Eventi Enogastronomici</option>
-                <option value="Tradizioni popolari & Religiose">Tradizioni popolari & Religiose</option>
-                <option value="Festival, Spettacoli & Concerti">Festival, Spettacoli & Concerti</option>
-                <option value="Eventi Sportivi">Eventi Sportivi</option>
-                <option value="Fiere & Manifestazioni territoriali">Fiere & Manifestazioni territoriali</option>
-              </Form.Select>
+              <Form.Label>Categorie * (selezionane almeno una)</Form.Label>
+              <div className="border rounded p-3" style={{ backgroundColor: '#f8f9fa' }}>
+                {['Sagre & Eventi Enogastronomici', 'Tradizioni popolari & Religiose', 'Festival, Spettacoli & Concerti', 'Eventi Sportivi', 'Fiere & Manifestazioni territoriali'].map((category) => (
+                  <Form.Check
+                    key={category}
+                    type="checkbox"
+                    id={`event-category-${category.replace(/\s+/g, '-')}`}
+                    label={category}
+                    checked={eventFormData.categories.includes(category)}
+                    onChange={(e) => {
+                      const newCategories = e.target.checked
+                        ? [...eventFormData.categories, category]
+                        : eventFormData.categories.filter(c => c !== category);
+                      setEventFormData({ ...eventFormData, categories: newCategories });
+                    }}
+                    className="mb-2"
+                  />
+                ))}
+              </div>
+              {eventFormData.categories.length > 0 && (
+                <div className="mt-2">
+                  <small className="text-muted d-block mb-2">
+                    <strong>{eventFormData.categories.length}</strong> {eventFormData.categories.length === 1 ? 'categoria selezionata' : 'categorie selezionate'}:
+                  </small>
+                  <div className="d-flex flex-wrap gap-2">
+                    {eventFormData.categories.map((cat) => (
+                      <Badge 
+                        key={cat} 
+                        bg="primary" 
+                        className="d-flex align-items-center gap-2"
+                        style={{ fontSize: '0.85rem', padding: '0.4rem 0.6rem', cursor: 'pointer' }}
+                        onClick={() => {
+                          const newCategories = eventFormData.categories.filter(c => c !== cat);
+                          setEventFormData({ ...eventFormData, categories: newCategories });
+                        }}
+                      >
+                        <span>{cat}</span>
+                        <span>&times;</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
             </Form.Group>
 
             <Form.Group className="mb-3">
