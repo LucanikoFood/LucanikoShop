@@ -253,6 +253,7 @@ const VendorProfile = () => {
       shipping: {
         freeShipping: false,
         freeShippingThreshold: 0,
+        allowStorePickup: false,
         defaultShippingRate: 0,
         shippingRates: []
       },
@@ -450,6 +451,7 @@ const VendorProfile = () => {
           shipping: {
             freeShipping: data.shopSettings?.shipping?.freeShipping || false,
             freeShippingThreshold: data.shopSettings?.shipping?.freeShippingThreshold || 0,
+            allowStorePickup: data.shopSettings?.shipping?.allowStorePickup || false,
             defaultShippingRate: data.shopSettings?.shipping?.defaultShippingRate || 0,
             shippingRates: data.shopSettings?.shipping?.shippingRates || []
           },
@@ -2460,6 +2462,29 @@ const VendorProfile = () => {
                     </Form.Text>
                   </Form.Group>
                 )}
+
+                <hr className="my-4" />
+
+                <h5 className="mb-3">Ritiro in Negozio</h5>
+                <Form.Check 
+                  type="checkbox"
+                  label="Abilita Ritiro in Negozio"
+                  checked={formData.shopSettings.shipping.allowStorePickup}
+                  onChange={(e) => setFormData(prev => ({
+                    ...prev,
+                    shopSettings: {
+                      ...prev.shopSettings,
+                      shipping: {
+                        ...prev.shopSettings.shipping,
+                        allowStorePickup: e.target.checked
+                      }
+                    }
+                  }))}
+                  className="mb-3"
+                />
+                <Form.Text className="text-muted d-block mb-3">
+                  Se abilitato, i clienti potranno scegliere di ritirare i prodotti direttamente presso il tuo negozio
+                </Form.Text>
 
                 <hr className="my-4" />
 

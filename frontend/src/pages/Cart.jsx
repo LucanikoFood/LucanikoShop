@@ -79,6 +79,7 @@ const Cart = () => {
   const [deliveryType, setDeliveryType] = useState('shipping'); // 'shipping' | 'pickup'
   const [vendorInfo, setVendorInfo] = useState(null);
   const [loadingVendor, setLoadingVendor] = useState(false);
+  const [vendorAllowsPickup, setVendorAllowsPickup] = useState(false);
 
   // Rileva numero di vendor unici nel carrello
   const uniqueVendors = [...new Set(cartItems.map(item => item.seller?._id || item.seller))];
@@ -265,6 +266,33 @@ const Cart = () => {
 
     fetchVendorTerms();
   }, [cartItems]);
+
+  // Verifica se il venditore permette il ritiro in negozio (sempre per singolo venditore)
+  useEffect(() => {
+    const checkVendorPickupOption = async () => {
+      if (!isSingleVendor || !vendorId) {
+        setVendorAllowsPickup(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_URL}/vendors/${vendorId}`);
+        const data = await res.json();
+        const vendorData = data.vendor || data;
+
+        if (res.ok) {
+          setVendorAllowsPickup(vendorData.shopSettings?.shipping?.allowStorePickup || false);
+        } else {
+          setVendorAllowsPickup(false);
+        }
+      } catch (error) {
+        console.error('Errore verifica opzione ritiro:', error);
+        setVendorAllowsPickup(false);
+      }
+    };
+
+    checkVendorPickupOption();
+  }, [vendorId, isSingleVendor]);
 
   // Recupera info negozio quando ritiro selezionato
   useEffect(() => {
@@ -699,13 +727,17 @@ const Cart = () => {
                         value="pickup"
                         checked={deliveryType === 'pickup'}
                         onChange={(e) => setDeliveryType(e.target.value)}
-                        disabled={!isSingleVendor}
+                        disabled={!isSingleVendor || !vendorAllowsPickup}
                       />
-                      {!isSingleVendor && (
+                      {!isSingleVendor ? (
                         <small className="text-muted ms-4">
                           ℹ️ Disponibile solo per ordini da un singolo negozio
                         </small>
-                      )}
+                      ) : !vendorAllowsPickup ? (
+                        <small className="text-muted ms-4">
+                          ℹ️ Questo venditore non offre il ritiro in negozio
+                        </small>
+                      ) : null}
                     </div>
                   </Form.Group>
 

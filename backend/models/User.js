@@ -239,6 +239,10 @@ const userSchema = new mongoose.Schema(
           type: Number,
           min: [0, 'La soglia non può essere negativa']
         },
+        allowStorePickup: { // Permette ritiro in negozio
+          type: Boolean,
+          default: false
+        },
         shippingRates: [{
           name: String, // Es: "Standard", "Express"
           description: String,
